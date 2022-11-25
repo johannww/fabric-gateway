@@ -52,4 +52,17 @@ describe('signers', () => {
                 .toThrow('1.3.132.0.10');
         });
     });
+
+    describe('ED25519', () => {
+        it('creates valid signer for ED25519 private key', async () => {
+            const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+            const message = Buffer.from('conga');
+
+            const signer = newPrivateKeySigner(privateKey);
+            const signature = await signer(message);
+            const valid = verify(null, message, publicKey, signature);
+
+            expect(valid).toBeTruthy();
+        });
+    });
 });

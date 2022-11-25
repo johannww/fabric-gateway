@@ -19,3 +19,8 @@ func SHA256(message []byte) []byte {
 	digest := sha256.Sum256(message)
 	return digest[:]
 }
+
+// NONE does not apply any hash, mainly for ed25519 signature.
+func None(message []byte) []byte {
+	return message
+}

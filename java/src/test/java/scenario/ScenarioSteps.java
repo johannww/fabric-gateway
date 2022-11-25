@@ -20,6 +20,8 @@ import io.grpc.Status;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.hyperledger.fabric.client.ChaincodeEvent;
 import org.hyperledger.fabric.client.GatewayException;
 import org.hyperledger.fabric.client.identity.Identities;
@@ -45,9 +47,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.security.interfaces.ECPrivateKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -725,10 +727,11 @@ public class ScenarioSteps {
         Path privateKeyPath = credentialPath.resolve(Paths.get("keystore", "key.pem"));
         PrivateKey privateKey = getPrivateKey(privateKeyPath);
 
-        if (privateKey instanceof ECPrivateKey) {
+        try {
             return Signers.newPrivateKeySigner(privateKey);
+        } catch (Exception e) {
+            throw new RuntimeException("Unexpected private key type: " + privateKey.getClass().getSimpleName());
         }
-        throw new RuntimeException("Unexpected private key type: " + privateKey.getClass().getSimpleName());
     }
 
     private static String getOrgForMspId(String mspId) {

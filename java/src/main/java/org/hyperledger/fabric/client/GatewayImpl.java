@@ -11,6 +11,7 @@ import io.grpc.CallOptions;
 import io.grpc.Channel;
 import org.hyperledger.fabric.client.identity.Identity;
 import org.hyperledger.fabric.client.identity.Signer;
+import org.hyperledger.fabric.client.identity.X509Identity;
 import org.hyperledger.fabric.protos.common.ChannelHeader;
 import org.hyperledger.fabric.protos.common.Envelope;
 import org.hyperledger.fabric.protos.common.Header;
@@ -128,9 +129,19 @@ final class GatewayImpl implements Gateway {
 
     private final GatewayClient client;
     private final SigningIdentity signingIdentity;
+    private static final String ED25519_ID = "1.3.101.112";
 
     private GatewayImpl(final Builder builder) {
-        signingIdentity = new SigningIdentity(builder.identity, builder.hash, builder.signer);
+        if (builder.identity instanceof X509Identity && ((X509Identity) builder.identity)
+                .getCertificate()
+                .getPublicKey()
+                .getAlgorithm()
+                .equals(ED25519_ID)) {
+            signingIdentity = new SigningIdentity(builder.identity, Hash::none, builder.signer);
+            System.out.println("Forcing \"hash::None\" because private key is Ed25519");
+        } else {
+            signingIdentity = new SigningIdentity(builder.identity, builder.hash, builder.signer);
+        }
         client = new GatewayClient(builder.grpcChannel, builder.optionsBuilder.build());
     }
 

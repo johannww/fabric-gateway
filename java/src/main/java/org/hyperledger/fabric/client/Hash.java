@@ -29,4 +29,13 @@ public final class Hash {
             throw new RuntimeException(e);
         }
     }
+
+    /**
+     * SHA-256 hash the supplied message to create a digest for signing.
+     * @param message Message to be hashed.
+     * @return Message digest.
+     */
+    public static byte[] none(final byte[] message) {
+        return message;
+    }
 }

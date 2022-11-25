@@ -18,6 +18,14 @@ import { Network, NetworkImpl } from './network';
 import { ProposalImpl } from './proposal';
 import { SigningIdentity } from './signingidentity';
 import { TransactionImpl } from './transaction';
+import * as x509 from '@peculiar/x509';
+import { none } from './hash/hashes';
+
+type PubKeyAlgorithm = {
+    name: string;
+    namedCurve: string;
+};
+
 
 /**
  * Options used when connecting to a Fabric Gateway.
@@ -128,6 +136,12 @@ export function internalConnect(options: Readonly<InternalConnectOptions>): Gate
 
     const signingIdentity = new SigningIdentity(options);
     const gatewayClient = newGatewayClient(options.client, options);
+
+    const cert = new x509.X509Certificate(options.identity.credentials);
+    if ('namedCurve' in cert.publicKey.algorithm && (<PubKeyAlgorithm>cert.publicKey.algorithm)['namedCurve'] == 'Ed25519') {
+        signingIdentity.hash = none;
+        console.log('Forcing "hash.None" because private key is Ed25519');
+    }
 
     return new GatewayImpl(gatewayClient, signingIdentity);
 }

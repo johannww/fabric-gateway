@@ -9,6 +9,7 @@ package identity
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"fmt"
 )
 
@@ -20,6 +21,8 @@ func NewPrivateKeySign(privateKey crypto.PrivateKey) (Sign, error) {
 	switch key := privateKey.(type) {
 	case *ecdsa.PrivateKey:
 		return ecdsaPrivateKeySign(key), nil
+	case ed25519.PrivateKey:
+		return ed25519PrivateKeySign(key), nil
 	default:
 		return nil, fmt.Errorf("unsupported key type: %T", privateKey)
 	}

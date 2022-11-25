@@ -9,6 +9,8 @@ package org.hyperledger.fabric.client.identity;
 import java.security.PrivateKey;
 import java.security.interfaces.ECPrivateKey;
 
+import org.bouncycastle.jcajce.interfaces.EdDSAPrivateKey;
+
 /**
  * Factory methods to create standard signing implementations.
  */
@@ -22,6 +24,8 @@ public final class Signers {
     public static Signer newPrivateKeySigner(final PrivateKey privateKey) {
         if (privateKey instanceof ECPrivateKey) {
             return new ECPrivateKeySigner((ECPrivateKey) privateKey);
+        } else if (privateKey instanceof EdDSAPrivateKey) {
+            return new ED25519Signer((EdDSAPrivateKey) privateKey);
         } else {
             throw new IllegalArgumentException("Unsupported private key type: " + privateKey.getClass().getTypeName());
         }

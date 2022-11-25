@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { KeyObject } from 'crypto';
+import { KeyObject, sign } from 'crypto';
 import { ec as EC } from 'elliptic';
 import { ecPrivateKeyAsRaw } from './asn1';
 import { HSMSignerFactory, HSMSignerFactoryImpl as HSMSignerFactoryImplType } from './hsmsigner';
@@ -32,6 +32,8 @@ export function newPrivateKeySigner(key: KeyObject): Signer {
     switch (key.asymmetricKeyType) {
     case 'ec':
         return newECPrivateKeySigner(key);
+    case 'ed25519':
+        return newED25519PrivateKeySigner(key);
     default:
         throw new Error(`Unsupported private key type: ${key.asymmetricKeyType ?? 'undefined'}`);
     }
@@ -45,6 +47,14 @@ function newECPrivateKeySigner(key: KeyObject): Signer {
     return (digest) => {
         const signature = curve.sign(digest, keyPair, { canonical: true });
         const signatureBytes = new Uint8Array(signature.toDER());
+        return Promise.resolve(signatureBytes);
+    };
+}
+
+function newED25519PrivateKeySigner(key: KeyObject): Signer {
+    return async (message) => {
+        const signature = sign(null, message, key);
+        const signatureBytes = new Uint8Array(signature);
         return Promise.resolve(signatureBytes);
     };
 }

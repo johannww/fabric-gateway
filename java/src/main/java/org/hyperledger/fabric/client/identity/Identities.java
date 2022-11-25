@@ -13,6 +13,7 @@ import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.security.InvalidKeyException;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -20,6 +21,7 @@ import java.security.cert.X509Certificate;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMException;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
@@ -33,6 +35,8 @@ import org.bouncycastle.util.io.pem.PemObject;
  * Utility methods for creating and manipulating identity information.
  */
 public final class Identities {
+    private static final Provider BC_PROVIDER = new BouncyCastleProvider();
+
     /**
      * Read a PEM format X.509 certificate.
      * @param pem PEM data.
@@ -109,7 +113,7 @@ public final class Identities {
         try {
             Object pemObject = readPemObject(pemReader);
             PrivateKeyInfo privateKeyInfo = asPrivateKeyInfo(pemObject);
-            return new JcaPEMKeyConverter().getPrivateKey(privateKeyInfo);
+            return new JcaPEMKeyConverter().setProvider(BC_PROVIDER).getPrivateKey(privateKeyInfo);
         } catch (PEMException e) {
             throw new InvalidKeyException(e);
         }

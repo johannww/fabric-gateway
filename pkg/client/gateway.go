@@ -14,6 +14,7 @@ package client
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"time"
@@ -50,6 +51,16 @@ func Connect(id identity.Identity, options ...ConnectOption) (*Gateway, error) {
 	if err := gw.applyConnectOptions(options); err != nil {
 		cancel()
 		return nil, err
+	}
+
+	idCertificate, err := identity.CertificateFromPEM(id.Credentials())
+	if err != nil {
+		return nil, err
+	}
+
+	if idCertificate.PublicKeyAlgorithm == x509.Ed25519 {
+		gw.signingID.hash = hash.None
+		fmt.Println("Forcing \"hash.None\" because private key is Ed25519")
 	}
 
 	if gw.client.grpcGatewayClient == nil {

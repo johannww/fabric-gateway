@@ -8,12 +8,15 @@ package org.hyperledger.fabric.client.identity;
 
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
+import java.security.PublicKey;
 import java.security.Signature;
 import java.security.cert.X509Certificate;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -29,9 +32,20 @@ public final class SignerTest {
     private static final byte[] MESSAGE = "MESSAGE".getBytes(StandardCharsets.UTF_8);
     private static final byte[] DIGEST = Hash.sha256(MESSAGE);
 
-    private static void assertValidSignature(X509Certificate certificate, final byte[] signature) throws GeneralSecurityException {
+    private static void assertValidECSignature(X509Certificate certificate, final byte[] signature) throws GeneralSecurityException {
         Signature verifier = Signature.getInstance("SHA256withECDSA", PROVIDER);
         verifier.initVerify(certificate);
+        verifier.update(MESSAGE);
+        assertThat(verifier.verify(signature))
+                .withFailMessage("invalid signature: %s", Arrays.toString(signature))
+                .isTrue();
+    }
+
+    private static void assertValidEd25519Signature(X509Certificate certificate, final byte[] signature) throws GeneralSecurityException {
+        Signature verifier = Signature.getInstance("Ed25519", PROVIDER);
+        KeyFactory ed25519Fact = KeyFactory.getInstance("Ed25519", PROVIDER);
+        PublicKey pub = ed25519Fact.generatePublic(new X509EncodedKeySpec(certificate.getPublicKey().getEncoded()));
+        verifier.initVerify(pub);
         verifier.update(MESSAGE);
         assertThat(verifier.verify(signature))
                 .withFailMessage("invalid signature: %s", Arrays.toString(signature))
@@ -53,7 +67,7 @@ public final class SignerTest {
         Signer signer = Signers.newPrivateKeySigner(CREDENTIALS.getPrivateKey());
         byte[] signature = signer.sign(DIGEST);
 
-        assertValidSignature(CREDENTIALS.getCertificate(), signature);
+        assertValidECSignature(CREDENTIALS.getCertificate(), signature);
     }
 
     @Test
@@ -66,10 +80,19 @@ public final class SignerTest {
 
     @Test
     void sign_with_P384_key() throws GeneralSecurityException {
-        X509Credentials credentials = new X509Credentials("P-384");
+        X509Credentials credentials = new X509Credentials("EC", "P-384");
         Signer signer = Signers.newPrivateKeySigner(credentials.getPrivateKey());
         byte[] signature = signer.sign(DIGEST);
 
-        assertValidSignature(credentials.getCertificate(), signature);
+        assertValidECSignature(credentials.getCertificate(), signature);
+    }
+
+    @Test
+    void sign_with_ED25519_key() throws GeneralSecurityException {
+        X509Credentials credentials = new X509Credentials("Ed25519", "");
+        Signer signer = Signers.newPrivateKeySigner(credentials.getPrivateKey());
+        byte[] signature = signer.sign(MESSAGE);
+
+        assertValidEd25519Signature(credentials.getCertificate(), signature);
     }
 }

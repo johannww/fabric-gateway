@@ -42,8 +42,10 @@ PeerOrgs:
     EnableNodeOUs: true
     Template:
       Count: 3 # Use 3rd one for the gateway id
+      PublicKeyAlgorithm: ecdsa
     Users:
       Count: 2
+      PublicKeyAlgorithm: ed25519
     SANS:
       - localhost
       - "127.0.0.1"
@@ -57,6 +59,7 @@ PeerOrgs:
       Count: 2
     Users:
       Count: 1
+      PublicKeyAlgorithm: ecdsa
     SANS:
       - localhost
       - "127.0.0.1"

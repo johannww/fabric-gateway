@@ -35,6 +35,7 @@ import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.bc.BcECContentSignerBuilder;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 public final class X509Credentials {
     private static final Provider BC_PROVIDER = new BouncyCastleProvider();
@@ -46,20 +47,22 @@ public final class X509Credentials {
      * Create credentials using a P-256 curve.
      */
     public X509Credentials() {
-        this("P-256");
+        this("EC", "P-256");
     }
 
-    public X509Credentials(String curveName) {
-        KeyPair keyPair = generateKeyPair(curveName);
+    public X509Credentials(String keyAlgorithm, String curveName) {
+        KeyPair keyPair = generateKeyPair(keyAlgorithm, curveName);
         certificate = generateCertificate(keyPair);
         privateKey = keyPair.getPrivate();
     }
 
-    private KeyPair generateKeyPair(String curveName) {
+    private KeyPair generateKeyPair(String keyAlgorithm, String curveName) {
         try {
-            KeyPairGenerator generator = KeyPairGenerator.getInstance("EC", BC_PROVIDER);
-            AlgorithmParameterSpec curveParam = new ECGenParameterSpec(curveName);
-            generator.initialize(curveParam);
+            KeyPairGenerator generator = KeyPairGenerator.getInstance(keyAlgorithm, BC_PROVIDER);
+            if (keyAlgorithm == "EC" && curveName.length() > 0) {
+                AlgorithmParameterSpec curveParam = new ECGenParameterSpec(curveName);
+                generator.initialize(curveParam);
+            }
             return generator.generateKeyPair();
         } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
             throw new RuntimeException(e);
@@ -84,8 +87,15 @@ public final class X509Credentials {
         AlgorithmIdentifier digAlgId = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
 
         try {
-            ContentSigner contentSigner = new BcECContentSignerBuilder(sigAlgId, digAlgId)
-                    .build(PrivateKeyFactory.createKey(keyPair.getPrivate().getEncoded()));
+            ContentSigner contentSigner = null;
+            if (keyPair.getPrivate().getAlgorithm() == "EC")
+                contentSigner = new BcECContentSignerBuilder(sigAlgId, digAlgId)
+                        .build(PrivateKeyFactory.createKey(keyPair.getPrivate().getEncoded()));
+            else if (keyPair.getPrivate().getAlgorithm() == "Ed25519"){
+                contentSigner = new JcaContentSignerBuilder("Ed25519")
+                    .setProvider(BC_PROVIDER)
+                    .build(keyPair.getPrivate());
+            }
             X509CertificateHolder holder = builder.build(contentSigner);
             return new JcaX509CertificateConverter().getCertificate(holder);
         } catch (IOException e) {
