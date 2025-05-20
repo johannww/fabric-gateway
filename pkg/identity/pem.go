@@ -59,6 +59,19 @@ func PrivateKeyToPEM(privateKey crypto.PrivateKey) ([]byte, error) {
 	return pemEncode(block)
 }
 
+func PublicKeyToPEM(publicKey crypto.PublicKey) ([]byte, error) {
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	block := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	}
+	return pemEncode(block)
+}
+
 func pemEncode(block *pem.Block) ([]byte, error) {
 	var buffer bytes.Buffer
 	if err := pem.Encode(&buffer, block); err != nil {
