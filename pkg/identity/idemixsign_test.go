@@ -48,6 +48,7 @@ func TestIdemixSign(t *testing.T) {
 	}
 
 	idemixId, err := NewIdemixIdentity("mockMSP", signerConf, mspConfig)
+	idemixId.NewPseudonym()
 	require.NoError(t, err, "failed to create idemix identity: %v", err)
 
 	// signFunc, err := NewIdemixStaticNymSign(sk, issuerKey.GetIpk(), nymSecretKey)
@@ -68,7 +69,7 @@ func TestIdemixSign(t *testing.T) {
 	require.NoError(t, err, "failed to unmarshal credential: %v", err)
 
 	// nymPk, err := nymSecretKey.PublicKey()
-	nymPk := idemixId.GetNymPublicKey()
+	nymPk, err := idemixId.GetNymPublicKey()
 	require.NoError(t, err, "failed to get public key: %v", err)
 
 	signerOpts := &types.IdemixSignerOpts{
@@ -123,6 +124,7 @@ func TestIdemixSignWithStaticNym(t *testing.T) {
 	sk := curve.NewZrFromBytes(skBytes)
 
 	idemixId, err := NewIdemixIdentity("mockMSP", signerConf, mspConfig)
+	idemixId.NewPseudonym()
 	require.NoError(t, err, "failed to create idemix identity: %v", err)
 
 	nymSecretKey, err := makeNewNymSecretKey(sk, issuerPk, idmx, translator)
@@ -146,7 +148,7 @@ func TestIdemixSignWithStaticNym(t *testing.T) {
 	require.NoError(t, err, "failed to unmarshal credential: %v", err)
 
 	// nymPk, err := nymSecretKey.PublicKey()
-	nymPk := idemixId.GetNymPublicKey()
+	nymPk, err := idemixId.GetNymPublicKey()
 	require.NoError(t, err, "failed to get public key: %v", err)
 
 	signerOpts := &types.IdemixSignerOpts{

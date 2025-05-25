@@ -57,17 +57,7 @@ func NewIdemixSign(mspConfig *idemixmsp.IdemixMSPConfig, idemixId *IdemixIdentit
 	signerOpts := newSignerOpts(&issuerPk, mspConfig)
 
 	return func(digest []byte) ([]byte, error) {
-		signerOpts.Nym, err = makeNewNymSecretKey(sk, &issuerPk, idmx, idmx.Translator)
-		if err != nil {
-			return nil, err
-		}
-
-		nymPk, err := signerOpts.Nym.PublicKey()
-		if err != nil {
-			return nil, err
-		}
-
-		idemixId.SetNymPk(nymPk)
+		signerOpts.Nym = idemixId.GetNym()
 
 		signature, err := idemixSigner.Sign(key, digest, signerOpts)
 		return signature, err
@@ -76,6 +66,7 @@ func NewIdemixSign(mspConfig *idemixmsp.IdemixMSPConfig, idemixId *IdemixIdentit
 }
 
 // NewIdemixStaticCredSign signs a message using the same pseudonym
+// TODO: johann i dont think this method is needed anymore
 func NewIdemixStaticCredSign(
 	nymSecretKey *handlers.NymSecretKey,
 	mspConfig *idemixmsp.IdemixMSPConfig,
@@ -102,7 +93,9 @@ func NewIdemixStaticCredSign(
 		return nil, err
 	}
 
-	idemixId.SetNymPk(publicKey)
+	_ = publicKey
+
+	// idemixId.SetNymPk(publicKey)
 
 	return func(digest []byte) ([]byte, error) {
 		signature, err := idemixSigner.Sign(key, digest, signerOpts)

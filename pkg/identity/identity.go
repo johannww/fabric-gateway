@@ -58,8 +58,9 @@ func NewX509Identity(mspID string, certificate *x509.Certificate) (*X509Identity
 // X509Identity represents a client identity backed by an X.509 certificate.
 type IdemixIdentity struct {
 	mspID                  string
+	mspConfig              *idemixmsp.IdemixMSPConfig
 	idmxSerializedIdentity *idemixmsp.SerializedIdemixIdentity
-	nymPk                  types.Key
+	nym                    types.Key
 }
 
 func (id *IdemixIdentity) MspID() string {
@@ -78,6 +79,7 @@ func NewIdemixIdentity(mspID string,
 	identity := &IdemixIdentity{
 		mspID: mspID,
 		// credentials: credential,
+		mspConfig: mspConfig,
 	}
 
 	identity.idmxSerializedIdentity = &idemixmsp.SerializedIdemixIdentity{}
@@ -107,6 +109,35 @@ func NewIdemixIdentity(mspID string,
 	identity.idmxSerializedIdentity.Role = roleBytes
 
 	return identity, nil
+}
+
+func (id *IdemixIdentity) NewPseudonym() error {
+	idmx, _ := idemixImplForCurveId(id.mspConfig.CurveId)
+
+	skBytes := id.mspConfig.Signer.Sk
+	sk := idmx.Curve.NewZrFromBytes(skBytes)
+
+	var issuerPk idemix.IssuerPublicKey
+	err := proto.Unmarshal(id.mspConfig.Ipk, &issuerPk)
+	if err != nil {
+		return err
+	}
+
+	id.nym, err = makeNewNymSecretKey(sk, &issuerPk, idmx, idmx.Translator)
+	if err != nil {
+		return err
+	}
+
+	nymPk, _ := id.nym.PublicKey()
+	raw, _ := nymPk.Bytes()
+	id.idmxSerializedIdentity.NymX = raw[:len(raw)/2]
+	id.idmxSerializedIdentity.NymY = raw[len(raw)/2:]
+
+	return nil
+}
+
+func (id *IdemixIdentity) GetNym() types.Key {
+	return id.nym
 }
 
 func (id *IdemixIdentity) CalculateProof(signerConf *idemixmsp.IdemixMSPSignerConfig, mspConfig *idemixmsp.IdemixMSPConfig) error {
@@ -142,13 +173,6 @@ func (id *IdemixIdentity) CalculateProof(signerConf *idemixmsp.IdemixMSPSignerCo
 	// )
 }
 
-func (id *IdemixIdentity) SetNymPk(nymPublicKey types.Key) {
-	raw, _ := nymPublicKey.Bytes()
-	id.idmxSerializedIdentity.NymX = raw[:len(raw)/2]
-	id.idmxSerializedIdentity.NymY = raw[len(raw)/2:]
-	id.nymPk = nymPublicKey
-}
-
-func (id *IdemixIdentity) GetNymPublicKey() types.Key {
-	return id.nymPk
+func (id *IdemixIdentity) GetNymPublicKey() (types.Key, error) {
+	return id.nym.PublicKey()
 }
