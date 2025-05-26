@@ -23,6 +23,76 @@ const (
 	SignerConfigPath = "user/SignerConfig"
 )
 
+func TestIdentityValidity(t *testing.T) {
+	issuerPkBytes, err := os.ReadFile(path.Join(dataDir, IssuerPkPath))
+	require.NoError(t, err, "failed to read issuer public key: %v", err)
+	revocationPkPemBytes, err := os.ReadFile(path.Join(dataDir, RevocationPkPath))
+	require.NoError(t, err, "failed to read revocation public key: %v", err)
+	signerConfBytes, err := os.ReadFile(path.Join(dataDir, SignerConfigPath))
+	require.NoError(t, err, "failed to read signer config: %v", err)
+
+	issuerPk, err := IssuerPublicKeyFromBytes(issuerPkBytes)
+	require.NoError(t, err, "failed to unmarshal issuer public key: %v", err)
+
+	revocationPkImporter := &handlers.RevocationPublicKeyImporter{}
+	revocationPk, err := revocationPkImporter.KeyImport(revocationPkPemBytes, nil)
+	require.NoError(t, err, "failed to import revocation public key: %v", err)
+
+	mspConfig := IdemixMspConfigFromBytes("mockMSP", issuerPkBytes, revocationPkPemBytes)
+
+	signerConf, err := IdemixSignerConfigFromBytes(mspConfig, signerConfBytes)
+	require.NoError(t, err, "failed to unmarshal signer config: %v", err)
+
+	curveIdInt := curvesByName[mspConfig.CurveId]
+	curve := math.Curves[curveIdInt]
+	translator := translators[curveIdInt]
+	idmx := &idemix.Idemix{
+		Curve:      curve,
+		Translator: translator,
+	}
+
+	idemixId, err := NewIdemixIdentity("mockMSP", signerConf, mspConfig)
+	require.NoError(t, err, "failed to create idemix identity: %v", err)
+	err = idemixId.NewPseudonym()
+	require.NoError(t, err, "failed to create pseudonym: %v", err)
+
+	verifier := &handlers.Verifier{
+		SignatureScheme: &bridge.SignatureScheme{
+			Idemix: idmx, Translator: translator,
+		},
+	}
+
+	var cred idemix.Credential
+	err = proto.Unmarshal(mspConfig.Signer.Cred, &cred)
+	require.NoError(t, err, "failed to unmarshal credential: %v", err)
+
+	serializedId := idemixId.idmxSerializedIdentity
+
+	signerOpts := &types.IdemixSignerOpts{
+		IssuerPK: handlers.NewIssuerPublicKey(
+			&bridge.IssuerPublicKey{
+				PK: issuerPk,
+			},
+		),
+		RevocationPublicKey: revocationPk,
+		Attributes: []types.IdemixAttribute{
+			{Type: types.IdemixBytesAttribute, Value: []byte(signerConf.OrganizationalUnitIdentifier)},
+			{Type: types.IdemixIntAttribute, Value: int(signerConf.Role)},
+			// {Type: types.IdemixBytesAttribute, Value: []byte(signerConf.EnrollmentId)},
+			{Type: types.IdemixHiddenAttribute},
+			{Type: types.IdemixHiddenAttribute},
+		},
+		RhIndex:  3,
+		EidIndex: 2,
+		Epoch:    0,
+	}
+
+	verify, err := verifier.Verify(signerOpts.IssuerPK, serializedId.Proof, nil, signerOpts)
+	require.NoError(t, err, "failed to verify association proof: %v", err)
+	require.True(t, verify, "identity association profo verification failed")
+
+}
+
 func TestIdemixSign(t *testing.T) {
 	issuerPkBytes, err := os.ReadFile(path.Join(dataDir, IssuerPkPath))
 	require.NoError(t, err, "failed to read issuer public key: %v", err)
