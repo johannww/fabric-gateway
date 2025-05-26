@@ -68,7 +68,10 @@ func (id *IdemixIdentity) MspID() string {
 }
 
 func (id *IdemixIdentity) Credentials() []byte {
-	credentials, _ := proto.Marshal(id.idmxSerializedIdentity)
+	credentials, err := proto.Marshal(id.idmxSerializedIdentity)
+	if err != nil {
+		panic(fmt.Errorf("failed to marshal Idemix identity: %v", err))
+	}
 	return credentials
 }
 
@@ -84,10 +87,8 @@ func NewIdemixIdentity(mspID string,
 
 	identity.idmxSerializedIdentity = &idemixmsp.SerializedIdemixIdentity{}
 
-	err := identity.CalculateProof(signerConf, mspConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate identity's proof: %v", err)
-	}
+	identity.mspConfig.Signer = signerConf
+	identity.mspConfig.CurveId = signerConf.CurveId
 
 	var issuerPk idemix.IssuerPublicKey
 	err = proto.Unmarshal(mspConfig.Ipk, &issuerPk)
@@ -133,6 +134,11 @@ func (id *IdemixIdentity) NewPseudonym() error {
 	id.idmxSerializedIdentity.NymX = raw[:len(raw)/2]
 	id.idmxSerializedIdentity.NymY = raw[len(raw)/2:]
 
+	err = id.CalculateProof()
+	if err != nil {
+		return fmt.Errorf("failed to calculate identity's proof: %v", err)
+	}
+
 	return nil
 }
 
@@ -140,14 +146,8 @@ func (id *IdemixIdentity) GetNym() types.Key {
 	return id.nym
 }
 
-func (id *IdemixIdentity) CalculateProof(signerConf *idemixmsp.IdemixMSPSignerConfig, mspConfig *idemixmsp.IdemixMSPConfig) error {
-	// Create the cryptographic evidence that this identity is valid
-	// NewIdemixStaticCredSign()
-
-	mspConfig.Signer = signerConf
-	mspConfig.CurveId = signerConf.CurveId
-
-	proof, err := genCredentialProof(mspConfig)
+func (id *IdemixIdentity) CalculateProof() error {
+	proof, err := genCredentialProof(id.mspConfig, id.nym)
 	if err != nil {
 		return fmt.Errorf("failed to generate credential proof: %v", err)
 	}

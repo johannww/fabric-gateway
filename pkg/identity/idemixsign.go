@@ -161,14 +161,18 @@ func makeNewNymSecretKey(sk *math.Zr,
 	}
 
 	nymSecretKey, err := handlers.NewNymSecretKey(big, ecp, translator, true)
-	nymSecretKey.PublicKey()
 	if err != nil {
 		return nil, err
 	}
 	return nymSecretKey, nil
 }
 
-func genCredentialProof(mspConfig *idemixmsp.IdemixMSPConfig) ([]byte, error) {
+func genCredentialProof(mspConfig *idemixmsp.IdemixMSPConfig, nym types.Key) ([]byte, error) {
+	idemixNymKey, ok := nym.(*handlers.NymSecretKey)
+	if !ok {
+		return nil, fmt.Errorf("nym is not a NymSecretKey type")
+	}
+
 	idmx, idemixSigner := idemixImplForCurveId(mspConfig.CurveId)
 
 	skBytes := mspConfig.Signer.Sk
@@ -183,10 +187,10 @@ func genCredentialProof(mspConfig *idemixmsp.IdemixMSPConfig) ([]byte, error) {
 
 	// TODO: enable idemix smart card
 	signerOpts := newSignerOpts(&issuerPk, mspConfig)
-	signerOpts.Nym, err = makeNewNymSecretKey(sk, &issuerPk, idmx, idmx.Translator)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create nym secret key: %v", err)
-	}
+	signerOpts.RhIndex = 3
+	signerOpts.EidIndex = 2
+	signerOpts.Nym = idemixNymKey
+
 
 	signature, err := idemixSigner.Sign(key, nil, signerOpts)
 
