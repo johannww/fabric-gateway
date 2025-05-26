@@ -10,6 +10,7 @@ import (
 	bridge "github.com/IBM/idemix/bccsp/schemes/dlog/bridge"
 	idemix "github.com/IBM/idemix/bccsp/schemes/dlog/crypto"
 	"github.com/IBM/idemix/bccsp/types"
+	"github.com/hyperledger/fabric-protos-go-apiv2/msp"
 
 	math "github.com/IBM/mathlib"
 	"github.com/golang/protobuf/proto"
@@ -68,6 +69,12 @@ func TestIdentityValidity(t *testing.T) {
 
 	serializedId := idemixId.idmxSerializedIdentity
 
+	var mspRole msp.MSPRole
+	proto.Unmarshal(serializedId.Role, &mspRole)
+
+	var ou msp.OrganizationUnit
+	err = proto.Unmarshal(serializedId.Ou, &ou)
+
 	signerOpts := &types.IdemixSignerOpts{
 		IssuerPK: handlers.NewIssuerPublicKey(
 			&bridge.IssuerPublicKey{
@@ -76,8 +83,10 @@ func TestIdentityValidity(t *testing.T) {
 		),
 		RevocationPublicKey: revocationPk,
 		Attributes: []types.IdemixAttribute{
-			{Type: types.IdemixBytesAttribute, Value: []byte(signerConf.OrganizationalUnitIdentifier)},
-			{Type: types.IdemixIntAttribute, Value: int(signerConf.Role)},
+			// {Type: types.IdemixBytesAttribute, Value: []byte(signerConf.OrganizationalUnitIdentifier)},
+			// {Type: types.IdemixIntAttribute, Value: int(signerConf.Role)},
+			{Type: types.IdemixBytesAttribute, Value: []byte(ou.OrganizationalUnitIdentifier)},
+			{Type: types.IdemixIntAttribute, Value: int(mspRole.Role)},
 			// {Type: types.IdemixBytesAttribute, Value: []byte(signerConf.EnrollmentId)},
 			{Type: types.IdemixHiddenAttribute},
 			{Type: types.IdemixHiddenAttribute},
