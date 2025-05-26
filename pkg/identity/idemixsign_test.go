@@ -48,8 +48,9 @@ func TestIdemixSign(t *testing.T) {
 	}
 
 	idemixId, err := NewIdemixIdentity("mockMSP", signerConf, mspConfig)
-	idemixId.NewPseudonym()
 	require.NoError(t, err, "failed to create idemix identity: %v", err)
+	err = idemixId.NewPseudonym()
+	require.NoError(t, err, "failed to create pseudonym: %v", err)
 
 	// signFunc, err := NewIdemixStaticNymSign(sk, issuerKey.GetIpk(), nymSecretKey)
 	signFunc, err := NewIdemixSign(mspConfig, idemixId)
@@ -124,8 +125,9 @@ func TestIdemixSignWithStaticNym(t *testing.T) {
 	sk := curve.NewZrFromBytes(skBytes)
 
 	idemixId, err := NewIdemixIdentity("mockMSP", signerConf, mspConfig)
-	idemixId.NewPseudonym()
 	require.NoError(t, err, "failed to create idemix identity: %v", err)
+	err = idemixId.NewPseudonym()
+	require.NoError(t, err, "failed to create pseudonym: %v", err)
 
 	nymSecretKey, err := makeNewNymSecretKey(sk, issuerPk, idmx, translator)
 	require.NoError(t, err, "failed to create nym secret key: %v", err)
