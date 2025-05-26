@@ -91,7 +91,10 @@ func NewIdemixIdentity(mspID string,
 	identity.mspConfig.CurveId = signerConf.CurveId
 
 	var issuerPk idemix.IssuerPublicKey
-	err = proto.Unmarshal(mspConfig.Ipk, &issuerPk)
+	err := proto.Unmarshal(mspConfig.Ipk, &issuerPk)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal issuer public key: %v", err)
+	}
 
 	ou := &fabricmsp.OrganizationUnit{
 		MspIdentifier:                mspID,
@@ -99,12 +102,18 @@ func NewIdemixIdentity(mspID string,
 		CertifiersIdentifier:         issuerPk.Hash,
 	}
 	ouBytes, err := proto.Marshal(ou)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal organizational unit: %v", err)
+	}
 
 	role := &fabricmsp.MSPRole{
 		MspIdentifier: mspID,
 		Role:          fabricmsp.MSPRole_MSPRoleType(signerConf.Role),
 	}
 	roleBytes, err := proto.Marshal(role)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal role: %v", err)
+	}
 
 	identity.idmxSerializedIdentity.Ou = ouBytes
 	identity.idmxSerializedIdentity.Role = roleBytes
@@ -121,12 +130,12 @@ func (id *IdemixIdentity) NewPseudonym() error {
 	var issuerPk idemix.IssuerPublicKey
 	err := proto.Unmarshal(id.mspConfig.Ipk, &issuerPk)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal issuer public key: %v", err)
 	}
 
 	id.nym, err = makeNewNymSecretKey(sk, &issuerPk, idmx, idmx.Translator)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create nym secret key: %v", err)
 	}
 
 	nymPk, _ := id.nym.PublicKey()
