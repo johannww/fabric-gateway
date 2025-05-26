@@ -108,7 +108,13 @@ func NewIdemixIdentity(mspID string,
 
 	role := &fabricmsp.MSPRole{
 		MspIdentifier: mspID,
-		Role:          fabricmsp.MSPRole_MSPRoleType(signerConf.Role),
+		// TODO: This works, but is semantically wrong.
+		// signerConf.Role is actually an idemix.Role:
+		// (https://github.com/IBM/idemix/tree/main/idemix_roles.go#L13).
+		// This is because the Idemix MSP tests for the ADMIN idemix.Role constant:
+		// https://github.com/IBM/idemix/blob/832db18b94785ad2657d91da96dd6c3401af1616/idemixmsp.go#L205-L211
+		// However, it should ideally follow the definitions of fabricmsp.MSPRole_MSPRoleType
+		Role: getMemberOrAdminRole(signerConf.Role),
 	}
 	roleBytes, err := proto.Marshal(role)
 	if err != nil {
@@ -184,4 +190,22 @@ func (id *IdemixIdentity) CalculateProof() error {
 
 func (id *IdemixIdentity) GetNymPublicKey() (types.Key, error) {
 	return id.nym.PublicKey()
+}
+
+// Role : Represents a IdemixRole
+type Role int32
+
+const (
+	MEMBER Role = 1
+	ADMIN  Role = 2
+	CLIENT Role = 4
+	PEER   Role = 8
+	// Next role values: 16, 32, 64 ...
+)
+
+func getMemberOrAdminRole(role int32) fabricmsp.MSPRole_MSPRoleType {
+	if role == int32(ADMIN) {
+		return fabricmsp.MSPRole_ADMIN
+	}
+	return fabricmsp.MSPRole_MEMBER
 }

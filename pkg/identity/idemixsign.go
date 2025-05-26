@@ -191,7 +191,6 @@ func genCredentialProof(mspConfig *idemixmsp.IdemixMSPConfig, nym types.Key) ([]
 	signerOpts.EidIndex = 2
 	signerOpts.Nym = idemixNymKey
 
-
 	signature, err := idemixSigner.Sign(key, nil, signerOpts)
 
 	return signature, err
