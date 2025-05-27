@@ -128,7 +128,7 @@ func NewIdemixIdentity(mspID string,
 }
 
 func (id *IdemixIdentity) NewPseudonym() error {
-	idmx, _ := idemixImplForCurveId(id.mspConfig.CurveId)
+	idmx, _ := idemixSignerImplForCurveId(id.mspConfig.CurveId)
 
 	skBytes := id.mspConfig.Signer.Sk
 	sk := idmx.Curve.NewZrFromBytes(skBytes)

@@ -1,7 +1,6 @@
 package identity
 
 import (
-	"crypto"
 	"fmt"
 
 	math "github.com/IBM/mathlib"
@@ -41,7 +40,7 @@ var (
 )
 
 func NewIdemixSign(mspConfig *idemixmsp.IdemixMSPConfig, idemixId *IdemixIdentity) (Sign, error) {
-	idmx, idemixSigner := idemixImplForCurveId(mspConfig.CurveId)
+	idmx, idemixSigner := idemixNymSignerImplForCurveId(mspConfig.CurveId)
 
 	skBytes := mspConfig.Signer.Sk
 	sk := idmx.Curve.NewZrFromBytes(skBytes)
@@ -53,58 +52,18 @@ func NewIdemixSign(mspConfig *idemixmsp.IdemixMSPConfig, idemixId *IdemixIdentit
 		return nil, err
 	}
 
-	// TODO: enable idemix smart card
-	signerOpts := newSignerOpts(&issuerPk, mspConfig)
+	return func(msg []byte) ([]byte, error) {
+		// TODO: enable idemix smart card
+		nymSk := idemixId.GetNym()
+		signerOpts := newNymSignerOpts(&issuerPk, nymSk)
 
-	return func(digest []byte) ([]byte, error) {
-		signerOpts.Nym = idemixId.GetNym()
-
-		signature, err := idemixSigner.Sign(key, digest, signerOpts)
+		signature, err := idemixSigner.Sign(key, msg, signerOpts)
 		return signature, err
 	}, nil
 
 }
 
-// NewIdemixStaticCredSign signs a message using the same pseudonym
-// TODO: johann i dont think this method is needed anymore
-func NewIdemixStaticCredSign(
-	nymSecretKey *handlers.NymSecretKey,
-	mspConfig *idemixmsp.IdemixMSPConfig,
-	idemixId *IdemixIdentity) (Sign, error) {
-
-	idmx, idemixSigner := idemixImplForCurveId(mspConfig.CurveId)
-
-	skBytes := mspConfig.Signer.Sk
-	sk := idmx.Curve.NewZrFromBytes(skBytes)
-	key := handlers.NewUserSecretKey(sk, true)
-
-	var issuerPk idemix.IssuerPublicKey
-	err := proto.Unmarshal(mspConfig.Ipk, &issuerPk)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: enable idemix smart card
-	signerOpts := newSignerOpts(&issuerPk, mspConfig)
-	signerOpts.Nym = nymSecretKey
-
-	publicKey, err := nymSecretKey.PublicKey()
-	if err != nil {
-		return nil, err
-	}
-
-	_ = publicKey
-
-	// idemixId.SetNymPk(publicKey)
-
-	return func(digest []byte) ([]byte, error) {
-		signature, err := idemixSigner.Sign(key, digest, signerOpts)
-		return signature, err
-	}, nil
-
-}
-
-func idemixImplForCurveId(curveId string) (*idemix.Idemix, *handlers.Signer) {
+func idemixSignerImplForCurveId(curveId string) (*idemix.Idemix, *handlers.Signer) {
 	curveIdInt, ok := curvesByName[curveId]
 	if !ok {
 		panic(fmt.Sprintf("curveId %s not found", curveId))
@@ -121,6 +80,28 @@ func idemixImplForCurveId(curveId string) (*idemix.Idemix, *handlers.Signer) {
 
 	idemixSigner := &handlers.Signer{
 		SignatureScheme: &bridge.SignatureScheme{
+			Idemix: idmx, Translator: idmx.Translator,
+		},
+	}
+	return idmx, idemixSigner
+}
+
+func idemixNymSignerImplForCurveId(curveId string) (*idemix.Idemix, *handlers.NymSigner) {
+	curveIdInt, ok := curvesByName[curveId]
+	if !ok {
+		panic(fmt.Sprintf("curveId %s not found", curveId))
+	}
+
+	curve := math.Curves[curveIdInt]
+	translator := translators[curveIdInt]
+
+	idmx := &idemix.Idemix{
+		Curve:      curve,
+		Translator: translator,
+	}
+
+	idemixSigner := &handlers.NymSigner{
+		NymSignatureScheme: &bridge.NymSignatureScheme{
 			Idemix: idmx, Translator: idmx.Translator,
 		},
 	}
@@ -144,7 +125,18 @@ func newSignerOpts(issuerPk *idemix.IssuerPublicKey, mspConfig *idemixmsp.Idemix
 			{Type: types.IdemixHiddenAttribute},
 		},
 		CRI: mspConfig.Signer.GetCredentialRevocationInformation(),
-		H:   crypto.SHA256,
+	}
+	return signerOpts
+}
+
+func newNymSignerOpts(issuerPk *idemix.IssuerPublicKey, nymSk types.Key) *types.IdemixNymSignerOpts {
+	signerOpts := &types.IdemixNymSignerOpts{
+		Nym: nymSk,
+		IssuerPK: handlers.NewIssuerPublicKey(
+			&bridge.IssuerPublicKey{
+				PK: issuerPk,
+			},
+		),
 	}
 	return signerOpts
 }
@@ -173,7 +165,7 @@ func genCredentialProof(mspConfig *idemixmsp.IdemixMSPConfig, nym types.Key) ([]
 		return nil, fmt.Errorf("nym is not a NymSecretKey type")
 	}
 
-	idmx, idemixSigner := idemixImplForCurveId(mspConfig.CurveId)
+	idmx, idemixSigner := idemixSignerImplForCurveId(mspConfig.CurveId)
 
 	skBytes := mspConfig.Signer.Sk
 	sk := idmx.Curve.NewZrFromBytes(skBytes)

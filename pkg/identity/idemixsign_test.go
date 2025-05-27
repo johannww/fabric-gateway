@@ -102,7 +102,7 @@ func TestIdentityValidity(t *testing.T) {
 
 }
 
-func TestIdemixSign(t *testing.T) {
+func TestNymIdemixSign(t *testing.T) {
 	issuerPkBytes, err := os.ReadFile(path.Join(dataDir, IssuerPkPath))
 	require.NoError(t, err, "failed to read issuer public key: %v", err)
 	revocationPkPemBytes, err := os.ReadFile(path.Join(dataDir, RevocationPkPath))
@@ -135,11 +135,11 @@ func TestIdemixSign(t *testing.T) {
 	signFunc, err := NewIdemixSign(mspConfig, idemixId)
 	require.NoError(t, err, "failed to create signer: %v", err)
 
-	signature, err := signFunc([]byte("a digest"))
+	signature, err := signFunc([]byte("a msg"))
 	require.NoError(t, err, "failed to sign: %v", err)
 
-	verifier := &handlers.Verifier{
-		SignatureScheme: &bridge.SignatureScheme{
+	verifier := &handlers.NymVerifier{
+		NymSignatureScheme: &bridge.NymSignatureScheme{
 			Idemix: idmx, Translator: translator,
 		},
 	}
@@ -152,105 +152,16 @@ func TestIdemixSign(t *testing.T) {
 	nymPk, err := idemixId.GetNymPublicKey()
 	require.NoError(t, err, "failed to get public key: %v", err)
 
-	signerOpts := &types.IdemixSignerOpts{
+	signerOpts := &types.IdemixNymSignerOpts{
 		Nym: nymPk,
 		IssuerPK: handlers.NewIssuerPublicKey(
 			&bridge.IssuerPublicKey{
 				PK: issuerPk,
 			},
 		),
-		Attributes: []types.IdemixAttribute{
-			{Type: types.IdemixBytesAttribute, Value: []byte(signerConf.OrganizationalUnitIdentifier)},
-			{Type: types.IdemixIntAttribute, Value: int(signerConf.Role)},
-			// {Type: types.IdemixBytesAttribute, Value: []byte(signerConf.EnrollmentId)},
-			{Type: types.IdemixHiddenAttribute},
-			{Type: types.IdemixHiddenAttribute},
-		},
-		H: crypto.SHA256,
 	}
 
-	verify, err := verifier.Verify(signerOpts.IssuerPK, signature, []byte("a digest"), signerOpts)
-	// verify, err := verifier.Verify(nymPk, signature, []byte("a digest"), signerOpts)
-	require.NoError(t, err, "failed to verify: %v", err)
-	require.True(t, verify, "signature verification failed")
-
-}
-
-func TestIdemixSignWithStaticNym(t *testing.T) {
-	issuerPkBytes, err := os.ReadFile(path.Join(dataDir, IssuerPkPath))
-	require.NoError(t, err, "failed to read issuer public key: %v", err)
-	revocationPkPemBytes, err := os.ReadFile(path.Join(dataDir, RevocationPkPath))
-	require.NoError(t, err, "failed to read revocation public key: %v", err)
-	signerConfBytes, err := os.ReadFile(path.Join(dataDir, SignerConfigPath))
-	require.NoError(t, err, "failed to read signer config: %v", err)
-
-	issuerPk, err := IssuerPublicKeyFromBytes(issuerPkBytes)
-	require.NoError(t, err, "failed to unmarshal issuer public key: %v", err)
-
-	mspConfig := IdemixMspConfigFromBytes("mockMSP", issuerPkBytes, revocationPkPemBytes)
-
-	signerConf, err := IdemixSignerConfigFromBytes(mspConfig, signerConfBytes)
-	require.NoError(t, err, "failed to unmarshal signer config: %v", err)
-
-	curveIdInt := curvesByName[mspConfig.CurveId]
-	curve := math.Curves[curveIdInt]
-	translator := translators[curveIdInt]
-	idmx := &idemix.Idemix{
-		Curve:      curve,
-		Translator: translator,
-	}
-
-	skBytes := mspConfig.Signer.Sk
-	sk := curve.NewZrFromBytes(skBytes)
-
-	idemixId, err := NewIdemixIdentity("mockMSP", signerConf, mspConfig)
-	require.NoError(t, err, "failed to create idemix identity: %v", err)
-	err = idemixId.NewPseudonym()
-	require.NoError(t, err, "failed to create pseudonym: %v", err)
-
-	nymSecretKey, err := makeNewNymSecretKey(sk, issuerPk, idmx, translator)
-	require.NoError(t, err, "failed to create nym secret key: %v", err)
-
-	// signFunc, err := NewIdemixStaticNymSign(sk, issuerKey.GetIpk(), nymSecretKey)
-	signFunc, err := NewIdemixStaticCredSign(nymSecretKey, mspConfig, idemixId)
-	require.NoError(t, err, "failed to create signer: %v", err)
-
-	signature, err := signFunc([]byte("a digest"))
-	require.NoError(t, err, "failed to sign: %v", err)
-
-	verifier := &handlers.Verifier{
-		SignatureScheme: &bridge.SignatureScheme{
-			Idemix: idmx, Translator: translator,
-		},
-	}
-
-	var cred idemix.Credential
-	err = proto.Unmarshal(mspConfig.Signer.Cred, &cred)
-	require.NoError(t, err, "failed to unmarshal credential: %v", err)
-
-	// nymPk, err := nymSecretKey.PublicKey()
-	nymPk, err := idemixId.GetNymPublicKey()
-	require.NoError(t, err, "failed to get public key: %v", err)
-
-	signerOpts := &types.IdemixSignerOpts{
-		Nym: nymPk,
-		IssuerPK: handlers.NewIssuerPublicKey(
-			&bridge.IssuerPublicKey{
-				PK: issuerPk,
-			},
-		),
-		Attributes: []types.IdemixAttribute{
-			{Type: types.IdemixBytesAttribute, Value: []byte(signerConf.OrganizationalUnitIdentifier)},
-			{Type: types.IdemixIntAttribute, Value: int(signerConf.Role)},
-			// {Type: types.IdemixBytesAttribute, Value: []byte(signerConf.EnrollmentId)},
-			{Type: types.IdemixHiddenAttribute},
-			{Type: types.IdemixHiddenAttribute},
-		},
-		H: crypto.SHA256,
-	}
-
-	verify, err := verifier.Verify(signerOpts.IssuerPK, signature, []byte("a digest"), signerOpts)
-	// verify, err := verifier.Verify(nymPk, signature, []byte("a digest"), signerOpts)
+	verify, err := verifier.Verify(nymPk, signature, []byte("a msg"), signerOpts)
 	require.NoError(t, err, "failed to verify: %v", err)
 	require.True(t, verify, "signature verification failed")
 
