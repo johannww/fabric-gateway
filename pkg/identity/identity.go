@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"fmt"
 
+	"github.com/IBM/idemix/bccsp/handlers"
 	idemix "github.com/IBM/idemix/bccsp/schemes/dlog/crypto"
 	"github.com/IBM/idemix/bccsp/types"
 	idemixmsp "github.com/IBM/idemix/idemixmsp"
@@ -60,7 +61,7 @@ type IdemixIdentity struct {
 	mspID                  string
 	mspConfig              *idemixmsp.IdemixMSPConfig
 	idmxSerializedIdentity *idemixmsp.SerializedIdemixIdentity
-	nym                    types.Key
+	nym                    *handlers.NymSecretKey
 }
 
 func (id *IdemixIdentity) MspID() string {
@@ -157,7 +158,7 @@ func (id *IdemixIdentity) NewPseudonym() error {
 	return nil
 }
 
-func (id *IdemixIdentity) GetNym() types.Key {
+func (id *IdemixIdentity) GetNym() *handlers.NymSecretKey {
 	return id.nym
 }
 
