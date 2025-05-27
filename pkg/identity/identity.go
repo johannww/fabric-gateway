@@ -168,24 +168,6 @@ func (id *IdemixIdentity) CalculateProof() error {
 	}
 	id.idmxSerializedIdentity.Proof = proof
 	return nil
-	// proof, err := msp.csp.Sign(
-	// 	UserKey,
-	// 	nil,
-	// 	&bccsp.IdemixSignerOpts{
-	// 		Credential: conf.Signer.Cred,
-	// 		Nym:        NymKey,
-	// 		IssuerPK:   IssuerPublicKey,
-	// 		Attributes: []bccsp.IdemixAttribute{
-	// 			{Type: bccsp.IdemixBytesAttribute},
-	// 			{Type: bccsp.IdemixIntAttribute},
-	// 			{Type: bccsp.IdemixHiddenAttribute},
-	// 			{Type: bccsp.IdemixHiddenAttribute},
-	// 		},
-	// 		RhIndex:  rhIndex,
-	// 		EidIndex: eidIndex,
-	// 		CRI:      conf.Signer.CredentialRevocationInformation,
-	// 	},
-	// )
 }
 
 func (id *IdemixIdentity) GetNymPublicKey() (types.Key, error) {
