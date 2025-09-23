@@ -1,7 +1,6 @@
 package identity
 
 import (
-	"crypto"
 	"os"
 	"path"
 	"testing"
@@ -86,7 +85,7 @@ func TestIdentityValidity(t *testing.T) {
 			// {Type: types.IdemixBytesAttribute, Value: []byte(signerConf.OrganizationalUnitIdentifier)},
 			// {Type: types.IdemixIntAttribute, Value: int(signerConf.Role)},
 			{Type: types.IdemixBytesAttribute, Value: []byte(ou.OrganizationalUnitIdentifier)},
-			{Type: types.IdemixIntAttribute, Value: int(mspRole.Role)},
+			{Type: types.IdemixIntAttribute, Value: int(getIdemixRoleFromMSPRoleType(mspRole.Role))},
 			// {Type: types.IdemixBytesAttribute, Value: []byte(signerConf.EnrollmentId)},
 			{Type: types.IdemixHiddenAttribute},
 			{Type: types.IdemixHiddenAttribute},

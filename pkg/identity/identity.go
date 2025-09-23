@@ -115,7 +115,7 @@ func NewIdemixIdentity(mspID string,
 		// This is because the Idemix MSP tests for the ADMIN idemix.Role constant:
 		// https://github.com/IBM/idemix/blob/832db18b94785ad2657d91da96dd6c3401af1616/idemixmsp.go#L205-L211
 		// However, it should ideally follow the definitions of fabricmsp.MSPRole_MSPRoleType
-		Role: getMemberOrAdminRole(signerConf.Role),
+		Role: getMSPRoleFromIdemixRole(signerConf.Role),
 	}
 	roleBytes, err := proto.Marshal(role)
 	if err != nil {
@@ -186,9 +186,16 @@ const (
 	// Next role values: 16, 32, 64 ...
 )
 
-func getMemberOrAdminRole(role int32) fabricmsp.MSPRole_MSPRoleType {
+func getMSPRoleFromIdemixRole(role int32) fabricmsp.MSPRole_MSPRoleType {
 	if role == int32(ADMIN) {
 		return fabricmsp.MSPRole_ADMIN
 	}
 	return fabricmsp.MSPRole_MEMBER
+}
+
+func getIdemixRoleFromMSPRoleType(role fabricmsp.MSPRole_MSPRoleType) Role {
+	if role == fabricmsp.MSPRole_ADMIN {
+		return ADMIN
+	}
+	return MEMBER
 }
