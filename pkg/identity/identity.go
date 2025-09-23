@@ -56,7 +56,7 @@ func NewX509Identity(mspID string, certificate *x509.Certificate) (*X509Identity
 	return identity, nil
 }
 
-// X509Identity represents a client identity backed by an X.509 certificate.
+// IdemixIdentity represents a client identity backed by an Idemix credential.
 type IdemixIdentity struct {
 	mspID                  string
 	mspConfig              *idemixmsp.IdemixMSPConfig
